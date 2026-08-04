@@ -44,9 +44,10 @@ DECOMPOSE_FORMAT: dict[str, Any] = {
                     "title": {"type": "string"},
                     "description": {"type": "string"},
                     "role": {"type": "string", "enum": ["engineer", "qa", "manager"]},
+                    "kind": {"type": "string", "enum": ["build", "research", "review"]},
                     "acceptance_criteria": {"type": "array", "items": {"type": "string"}},
                 },
-                "required": ["title", "description", "role", "acceptance_criteria"],
+                "required": ["title", "description", "role", "kind", "acceptance_criteria"],
             },
         },
         "clarification_needed": {"type": "string"},
@@ -115,8 +116,10 @@ async def decompose_objective(brief: str, company_name: str) -> dict:
     system = (
         f"You are the engineering manager at {company_name}. Decompose the "
         "objective into 2-5 small, independently completable tasks, each with "
-        "concrete acceptance criteria. Assign each to the right role. If the "
-        "objective is materially ambiguous, fill clarification_needed with the "
-        "question and give your best-guess decomposition anyway."
+        "concrete acceptance criteria. Assign each to the right role. Set kind: "
+        "build (create/modify artifacts), research (investigate/gather "
+        "information), review (verify/QA existing work). If the objective is "
+        "materially ambiguous, fill clarification_needed with the question and "
+        "give your best-guess decomposition anyway."
     )
     return await _chat_structured(system, brief, DECOMPOSE_FORMAT)

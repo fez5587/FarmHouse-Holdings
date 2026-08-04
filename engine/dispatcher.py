@@ -128,7 +128,7 @@ class Dispatcher:
             FROM work_item wi
             JOIN employee e ON e.id = wi.owner_id
             JOIN company c ON c.id = wi.company_id
-            WHERE wi.status = 'ready' AND wi.type IN ('task','subtask','defect')
+            WHERE wi.status = 'ready' AND wi.type IN ('task','subtask','defect','research','review')
               AND c.lifecycle_state = 'active' AND e.hermes_profile IS NOT NULL
             ORDER BY wi.created_at LIMIT %s
             """, slots,

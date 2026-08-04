@@ -252,11 +252,13 @@ async def create_objective(slug: str, body: ObjectiveCreate) -> dict:
                 idx = rr_index.get(t["role"], 0)
                 owner = pool_for_role[idx % len(pool_for_role)]
                 rr_index[t["role"]] = idx + 1
+                item_type = {"research": "research", "review": "review"}.get(
+                    t.get("kind"), "task")
                 cur = await conn.execute(
                     "INSERT INTO work_item (company_id, parent_id, type, title, description, "
                     "status, owner_id, acceptance_criteria) "
-                    "VALUES (%s, %s, 'task', %s, %s, 'ready', %s, %s) RETURNING id",
-                    (company["id"], objective_id, t["title"], t["description"],
+                    "VALUES (%s, %s, %s, %s, %s, 'ready', %s, %s) RETURNING id",
+                    (company["id"], objective_id, item_type, t["title"], t["description"],
                      owner["id"], db.Json(t["acceptance_criteria"])),
                 )
                 child_id = (await cur.fetchone())["id"]
