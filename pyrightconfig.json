@@ -1,0 +1,5 @@
+{
+  "venvPath": "/home/philip/.venvs",
+  "venv": "farmhouse",
+  "extraPaths": ["."]
+}
