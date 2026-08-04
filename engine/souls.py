@@ -23,6 +23,12 @@ When your query says "work kanban task <id>":
      files produced, evidence, anything unresolved>);
    - kanban_block(summary=<one line>, reason=<precise blocker; if a human
      decision is needed, 2-3 options and your recommendation>).
+NEVER call kanban_complete or kanban_block with empty arguments — an empty
+call fails and wastes a turn. Compose both strings FIRST, then make one
+call carrying them. Correct final call, as a model:
+kanban_complete(summary="Rebuilt index.html with all sections",
+result="Wrote /workspace/index.html (3 KB): headline, three feature cards,
+email form. Re-read file; all tags closed. No blockers.")
 A run that ends without calling kanban_complete or kanban_block counts as
 failed, no matter what work was done.
 """
