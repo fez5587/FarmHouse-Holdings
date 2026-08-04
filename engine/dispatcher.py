@@ -77,6 +77,56 @@ class Dispatcher:
         await self._poll_in_flight()
         await self._dispatch_ready()
         await self._roll_up_objectives()
+        await self._manager_standup()
+
+    STANDUP_TITLE = "Team standup: plan next work"
+
+    async def _manager_standup(self) -> None:
+        """When a company's whole team is idle, the manager works: review what
+        shipped, set a milestone check per employee, propose next tasks.
+        Proposals are written to the workspace for shareholder review — the
+        engine never auto-executes them (approval stays human)."""
+        rows = await db.fetch_all(
+            """
+            SELECT c.id AS company_id, c.slug, c.name, e.id AS manager_id
+            FROM company c JOIN employee e ON e.company_id = c.id AND e.role = 'manager'
+            WHERE c.lifecycle_state = 'active'
+              AND NOT EXISTS (SELECT 1 FROM work_item w WHERE w.company_id = c.id
+                              AND w.status IN ('ready','in_progress','blocked'))
+              AND EXISTS (SELECT 1 FROM work_item w WHERE w.company_id = c.id
+                          AND w.status = 'done' AND w.type <> 'objective')
+              AND NOT EXISTS (SELECT 1 FROM work_item w WHERE w.company_id = c.id
+                              AND w.title = %s
+                              AND w.created_at > now() - interval '4 hours')
+            """, self.STANDUP_TITLE)
+        for row in rows:
+            desc = (
+                "The team is idle. As manager, run a standup on paper:\n"
+                "1. List the files currently in the company workspace and skim the "
+                "recent ones.\n"
+                "2. Write a standup report to the workspace as standup-report.md "
+                "(overwrite if it exists) containing: (a) one milestone check per "
+                "employee — what they last delivered and one measurable check for "
+                "their next deliverable; (b) 2-4 proposed next tasks, each with a "
+                "title, 1-2 sentence description, suggested owner role, and concrete "
+                "acceptance criteria.\n"
+                "Propose only; do not start any of the proposed work yourself.")
+            async with db.pool.connection() as conn:
+                async with conn.transaction():
+                    cur = await conn.execute(
+                        "INSERT INTO work_item (company_id, type, title, description, "
+                        "status, owner_id, acceptance_criteria) "
+                        "VALUES (%s, 'research', %s, %s, 'ready', %s, %s) RETURNING id",
+                        (row["company_id"], self.STANDUP_TITLE, desc, row["manager_id"],
+                         db.Json(["standup-report.md exists in the workspace with a "
+                                  "milestone check per employee and 2-4 proposed tasks "
+                                  "with acceptance criteria"])))
+                    item_id = (await cur.fetchone())["id"]
+                    await db.append_event(
+                        conn, actor="system", event_type="standup.called",
+                        company_id=row["company_id"], work_item_id=item_id,
+                        payload={"note": "team idle; manager planning next work"})
+            log.info("standup called for %s", row["slug"])
 
     async def _roll_up_objectives(self) -> None:
         rows = await db.fetch_all(
