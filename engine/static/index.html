@@ -54,6 +54,11 @@ async function togglePause() {
   refresh();
 }
 
+async function companyState(slug, action) {
+  await fetch(`/companies/${slug}/${action}`, {method:'POST'});
+  refresh();
+}
+
 async function answerItem(slug, id) {
   const answer = window.prompt('Answer / unblock instruction for this task:');
   if (!answer || !answer.trim()) return;
@@ -117,7 +122,10 @@ async function refresh() {
         const who = e.event_type === 'directive.received' ? '🧑‍💼 you' : '👔 CEO';
         return `<div class="ev"><span class="t">${t}</span><span class="type">${who}</span>${String(txt).slice(0,300)}</div>`;
       }).join('');
-      html += `<div class="card"><h1>${c.name} <span class="pill ${c.lifecycle_state}">${c.lifecycle_state}</span></h1>
+      const cpBtn = c.lifecycle_state === 'paused'
+        ? `<button onclick="companyState('${c.slug}','resume')">▶ resume</button>`
+        : `<button onclick="companyState('${c.slug}','pause')">⏸ pause</button>`;
+      html += `<div class="card"><h1>${c.name} <span class="pill ${c.lifecycle_state}">${c.lifecycle_state}</span> ${cpBtn}</h1>
         <div class="grid">
           <div>
             <h2>Employees</h2><table>${emps}</table>

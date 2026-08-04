@@ -44,7 +44,9 @@ app = FastAPI(title="FarmHouse Holdings Engine", version="0.1.0", lifespan=lifes
 class EmployeeSpec(BaseModel):
     name: str
     title: str
-    role: str  # manager | engineer | qa
+    role: str  # manager | engineer | qa | consultant
+    model: str = "qwen3.5:9b"
+    provider: str = "custom"  # custom = local pool; anthropic/openai-codex = external consultant billing
 
     def validate_role(self) -> None:
         if self.role not in ROLE_CHARTERS:
@@ -136,7 +138,8 @@ async def create_company(body: CompanyCreate) -> dict:
             await hermes.create_profile(
                 profile_name(body.slug, spec.name),
                 soul=build_soul(spec.role, name=spec.name, title=spec.title, company_name=body.name),
-                model="qwen3.5:9b",
+                model=spec.model,
+                provider=spec.provider,
                 description=f"{body.name}: {spec.title}",
             )
         except HermesError as e:
@@ -148,6 +151,42 @@ async def create_company(body: CompanyCreate) -> dict:
         "employees": [{"id": str(e["id"]), "name": e["spec"].name} for e in employees],
         "profile_errors": profile_errors,
     }
+
+
+@app.post("/companies/{slug}/employees", status_code=201)
+async def hire_employee(slug: str, spec: EmployeeSpec) -> dict:
+    """Hire into an existing company — used for consultants (external models)."""
+    spec.validate_role()
+    company = await db.fetch_one(
+        "SELECT * FROM company WHERE slug = %s AND lifecycle_state = 'active'", slug)
+    if not company:
+        raise HTTPException(404, "no active company with that slug")
+    profile = profile_name(slug, spec.name)
+    async with db.pool.connection() as conn:
+        async with conn.transaction():
+            cur = await conn.execute(
+                "INSERT INTO employee (company_id, name, title, role, hermes_profile) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                (company["id"], spec.name, spec.title, spec.role, profile))
+            emp_id = (await cur.fetchone())["id"]
+            await db.append_event(conn, actor="user:philip", event_type="employee.hired",
+                                  company_id=company["id"], source="api",
+                                  payload={"employee_id": str(emp_id), "name": spec.name,
+                                           "title": spec.title, "role": spec.role,
+                                           "model": f"{spec.provider}/{spec.model}"})
+    error = None
+    try:
+        await hermes.create_profile(
+            profile,
+            soul=build_soul(spec.role, name=spec.name, title=spec.title,
+                            company_name=company["name"]),
+            model=spec.model,
+            provider=spec.provider,
+            description=f"{company['name']}: {spec.title}",
+        )
+    except HermesError as e:
+        error = str(e)[:200]
+    return {"employee_id": str(emp_id), "hermes_profile": profile, "profile_error": error}
 
 
 @app.get("/companies")
@@ -352,6 +391,34 @@ async def list_work_items(slug: str) -> list[dict]:
         "LEFT JOIN employee e ON e.id = wi.owner_id "
         "WHERE wi.company_id = %s ORDER BY wi.created_at", company["id"])
     return [db.as_json(r) for r in rows]
+
+
+@app.post("/companies/{slug}/pause")
+async def pause_company(slug: str) -> dict:
+    """Stop new dispatch/standups/directives for one company. In-flight tasks
+    finish; nothing new starts until resume."""
+    return await _set_company_state(slug, "active", "paused", "company.paused")
+
+
+@app.post("/companies/{slug}/resume")
+async def resume_company(slug: str) -> dict:
+    return await _set_company_state(slug, "paused", "active", "company.resumed")
+
+
+async def _set_company_state(slug: str, expect: str, new: str, event: str) -> dict:
+    company = await db.fetch_one("SELECT * FROM company WHERE slug = %s", slug)
+    if not company:
+        raise HTTPException(404, "no such company")
+    if company["lifecycle_state"] != expect:
+        raise HTTPException(409, f"company is {company['lifecycle_state']}, expected {expect}")
+    async with db.pool.connection() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                "UPDATE company SET lifecycle_state = %s WHERE id = %s", (new, company["id"]))
+            await db.append_event(conn, actor="user:philip", event_type=event,
+                                  company_id=company["id"], source="api",
+                                  payload={"scope": "company"})
+    return {"slug": slug, "lifecycle_state": new}
 
 
 # ---------------------------------------------------------------- global pause (kill switch v1)

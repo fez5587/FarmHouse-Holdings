@@ -44,7 +44,7 @@ DECOMPOSE_FORMAT: dict[str, Any] = {
                 "properties": {
                     "title": {"type": "string"},
                     "description": {"type": "string"},
-                    "role": {"type": "string", "enum": ["engineer", "qa", "manager"]},
+                    "role": {"type": "string", "enum": ["engineer", "qa", "manager", "consultant"]},
                     "kind": {"type": "string", "enum": ["build", "research", "review"]},
                     "acceptance_criteria": {"type": "array", "items": {"type": "string"}},
                 },
@@ -118,7 +118,10 @@ async def decompose_objective(brief: str, company_name: str) -> dict:
     system = (
         f"You are the engineering manager at {company_name}. Decompose the "
         "objective into 2-5 small, independently completable tasks, each with "
-        "concrete acceptance criteria. Assign each to the right role. Set kind: "
+        "concrete acceptance criteria. Assign each to the right role; assign "
+        "consultant ONLY when a task truly needs frontier-model expertise the "
+        "core team lacks (deep architecture, hard debugging) — consultants "
+        "cost real money per task. Set kind: "
         "build (create/modify artifacts), research (investigate/gather "
         "information), review (verify/QA existing work). If the objective is "
         "materially ambiguous, fill clarification_needed with the question and "

@@ -75,11 +75,15 @@ class HermesClient:
         return data if isinstance(data, list) else data.get("profiles", [])
 
     async def create_profile(self, name: str, *, soul: str, model: str,
-                             description: str = "") -> None:
+                             provider: str = "custom", description: str = "") -> None:
         """Create employee persona: profile + soul (system prompt) + model binding.
 
         no_skills: lean prompt — 73 bundled skills drown a 9B model's tool
         discipline; employees get capabilities via explicit toolsets instead.
+
+        provider "custom" = local Ollama pool. Anything else ("anthropic",
+        "openai-codex", ...) must be authenticated in Hermes (GUI credential
+        pool) and is billed externally — consultants.
         """
         await self._json("POST", "/api/profiles", json={
             "name": name,
@@ -87,15 +91,14 @@ class HermesClient:
             "description": description,
         })
         await self._json("PUT", f"/api/profiles/{name}/soul", json={"content": soul})
-        # no-clone profiles have a bare config with no custom endpoint defined;
-        # declare the pool endpoint directly, same shape as the default profile
+        model_cfg: dict = {"default": model, "provider": provider}
+        if provider == "custom":
+            # no-clone profiles have a bare config with no custom endpoint defined;
+            # declare the pool endpoint directly, same shape as the default profile
+            model_cfg["base_url"] = f"{settings.ollama_pool_url}/v1"
         await self._json("PUT", "/api/config", json={
             "profile": name,
-            "config": {"model": {
-                "default": model,
-                "provider": "custom",
-                "base_url": f"{settings.ollama_pool_url}/v1",
-            }},
+            "config": {"model": model_cfg},
         })
 
     async def get_soul(self, name: str) -> str:
