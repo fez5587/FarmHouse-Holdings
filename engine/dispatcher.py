@@ -226,7 +226,8 @@ class Dispatcher:
 
     async def _dispatch_ready(self) -> None:
         in_flight = (await db.fetch_one(
-            "SELECT count(*) AS n FROM work_item WHERE status = 'in_progress'"))["n"]
+            "SELECT count(*) AS n FROM work_item WHERE status = 'in_progress' "
+            "AND type IN ('task','subtask','defect','research','review')"))["n"]
         slots = MAX_IN_FLIGHT - in_flight
         if slots <= 0:
             return
@@ -279,7 +280,9 @@ class Dispatcher:
                 body=_task_body(item) + await self._sibling_context(item),
                 assignee=item["hermes_profile"],
                 tenant=item["company_slug"],
-                idempotency_key=str(item["id"]),
+                # owner in the key: re-dispatch after escalation must create a
+                # fresh kanban task, not dedupe onto the old owner's blocked one
+                idempotency_key=f"{item['id']}:{item['owner_id']}",
                 max_runtime_seconds=int(budget.get("max_wall_seconds", 1800)),
                 goal_max_turns=int(budget.get("max_iterations", 15)),
                 workspace_path=(item.get("company_config") or {}).get("workspace_path"),
