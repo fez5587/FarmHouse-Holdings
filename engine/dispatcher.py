@@ -76,6 +76,28 @@ class Dispatcher:
     async def tick(self) -> None:
         await self._poll_in_flight()
         await self._dispatch_ready()
+        await self._roll_up_objectives()
+
+    async def _roll_up_objectives(self) -> None:
+        rows = await db.fetch_all(
+            """
+            SELECT o.id, o.company_id FROM work_item o
+            WHERE o.type = 'objective' AND o.status = 'in_progress'
+              AND EXISTS (SELECT 1 FROM work_item c WHERE c.parent_id = o.id)
+              AND NOT EXISTS (SELECT 1 FROM work_item c
+                              WHERE c.parent_id = o.id AND c.status NOT IN ('done','cancelled'))
+            """
+        )
+        for row in rows:
+            async with db.pool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute(
+                        "UPDATE work_item SET status='done', updated_at=now() WHERE id=%s",
+                        (row["id"],))
+                    await db.append_event(conn, actor="system", event_type="work_item.updated",
+                                          company_id=row["company_id"], work_item_id=row["id"],
+                                          payload={"status": "done", "note": "all child tasks done"})
+            log.info("objective %s rolled up to done", row["id"])
 
     async def _dispatch_ready(self) -> None:
         in_flight = (await db.fetch_one(
