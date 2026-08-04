@@ -134,7 +134,7 @@ class HermesClient:
             "triage": False,
         }
         if workspace_path:
-            payload["workspace_kind"] = "path"
+            payload["workspace_kind"] = "dir"
             payload["workspace_path"] = workspace_path
         data = await self._json("POST", "/api/plugins/kanban/tasks", json=payload)
         return data.get("task", data)

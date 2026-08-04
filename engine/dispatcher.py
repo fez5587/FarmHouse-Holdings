@@ -113,11 +113,16 @@ class Dispatcher:
             )
             await self.hermes.dispatch_now()
         except HermesError as e:
+            # block instead of retrying every tick: dispatch 4xx is config, not transient
             log.warning("dispatch failed for %s: %s", item["id"], e)
             async with db.pool.connection() as conn:
-                await db.append_event(conn, actor="system", event_type="dispatch.failed",
-                                      company_id=item["company_id"], work_item_id=item["id"],
-                                      payload={"error": str(e)[:300]})
+                async with conn.transaction():
+                    await conn.execute(
+                        "UPDATE work_item SET status='blocked', updated_at=now() WHERE id=%s",
+                        (item["id"],))
+                    await db.append_event(conn, actor="system", event_type="dispatch.failed",
+                                          company_id=item["company_id"], work_item_id=item["id"],
+                                          payload={"error": str(e)[:300]})
             return
         async with db.pool.connection() as conn:
             async with conn.transaction():
