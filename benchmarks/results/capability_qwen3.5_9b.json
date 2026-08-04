@@ -1,0 +1,398 @@
+{
+  "host": "http://172.19.96.1:11434",
+  "model": "qwen3.5:9b",
+  "json": {
+    "cases": [
+      {
+        "expected": "task.accepted",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.accepted"
+      },
+      {
+        "expected": "task.progressed",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.progressed"
+      },
+      {
+        "expected": "clarification.requested",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": false,
+        "got": "task.blocked"
+      },
+      {
+        "expected": "approval.requested",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "approval.requested"
+      },
+      {
+        "expected": "task.completed",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.completed"
+      },
+      {
+        "expected": "artifact.created",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "artifact.created"
+      },
+      {
+        "expected": "task.blocked",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.blocked"
+      },
+      {
+        "expected": "task.accepted",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.accepted"
+      },
+      {
+        "expected": "task.progressed",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.progressed"
+      },
+      {
+        "expected": "clarification.requested",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "clarification.requested"
+      },
+      {
+        "expected": "task.accepted",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.accepted"
+      },
+      {
+        "expected": "task.progressed",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.progressed"
+      },
+      {
+        "expected": "clarification.requested",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "clarification.requested"
+      },
+      {
+        "expected": "approval.requested",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": false,
+        "got": "task.completed"
+      },
+      {
+        "expected": "task.completed",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.completed"
+      },
+      {
+        "expected": "artifact.created",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "artifact.created"
+      },
+      {
+        "expected": "task.blocked",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.blocked"
+      },
+      {
+        "expected": "task.accepted",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "task.accepted"
+      },
+      {
+        "expected": "task.progressed",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": false,
+        "got": "task.blocked"
+      },
+      {
+        "expected": "clarification.requested",
+        "valid_json": true,
+        "schema_ok": true,
+        "type_ok": true,
+        "got": "clarification.requested"
+      }
+    ],
+    "valid_pct": 100.0,
+    "correct_type_pct": 85.0
+  },
+  "tools": {
+    "cases": [
+      {
+        "expected": "search_code",
+        "called": "search_code",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "read_file",
+        "called": "read_file",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "run_tests",
+        "called": "run_tests",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "git_commit",
+        "called": "git_commit",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "http_request",
+        "called": "http_request",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "write_file",
+        "called": "write_file",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "ask_manager",
+        "called": "ask_manager",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "search_code",
+        "called": "search_code",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "read_file",
+        "called": "read_file",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "git_commit",
+        "called": "git_commit",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "run_tests",
+        "called": "run_tests",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "http_request",
+        "called": "http_request",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "search_code",
+        "called": "search_code",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "read_file",
+        "called": "read_file",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "run_tests",
+        "called": "run_tests",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "git_commit",
+        "called": "git_commit",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "http_request",
+        "called": "http_request",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "write_file",
+        "called": "write_file",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "ask_manager",
+        "called": "ask_manager",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "search_code",
+        "called": "search_code",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "read_file",
+        "called": "read_file",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "git_commit",
+        "called": "git_commit",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "run_tests",
+        "called": "run_tests",
+        "tool_ok": true,
+        "args_ok": true
+      },
+      {
+        "expected": "http_request",
+        "called": "http_request",
+        "tool_ok": true,
+        "args_ok": true
+      }
+    ],
+    "tool_pct": 100.0,
+    "tool_and_args_pct": 100.0
+  },
+  "code": {
+    "cases": [
+      {
+        "name": "slugify",
+        "passed": true,
+        "error": ""
+      },
+      {
+        "name": "merge_intervals",
+        "passed": true,
+        "error": ""
+      },
+      {
+        "name": "parse_dotenv",
+        "passed": true,
+        "error": ""
+      },
+      {
+        "name": "fix_bug",
+        "passed": true,
+        "error": ""
+      },
+      {
+        "name": "retry_decorator",
+        "passed": true,
+        "error": ""
+      },
+      {
+        "name": "csv_group",
+        "passed": true,
+        "error": ""
+      }
+    ],
+    "pass_pct": 100.0
+  },
+  "retention": {
+    "cases": [
+      {
+        "iteration": 1,
+        "ok": true,
+        "adversarial": false
+      },
+      {
+        "iteration": 2,
+        "ok": true,
+        "adversarial": false
+      },
+      {
+        "iteration": 3,
+        "ok": true,
+        "adversarial": false
+      },
+      {
+        "iteration": 4,
+        "ok": true,
+        "adversarial": false
+      },
+      {
+        "iteration": 5,
+        "ok": true,
+        "adversarial": true
+      },
+      {
+        "iteration": 6,
+        "ok": true,
+        "adversarial": false
+      },
+      {
+        "iteration": 7,
+        "ok": true,
+        "adversarial": true
+      },
+      {
+        "iteration": 8,
+        "ok": true,
+        "adversarial": false
+      },
+      {
+        "iteration": 9,
+        "ok": true,
+        "adversarial": false
+      },
+      {
+        "iteration": 10,
+        "ok": true,
+        "adversarial": false
+      }
+    ],
+    "ok_pct": 100.0
+  },
+  "elapsed_s": 86.9,
+  "gates": {
+    "json_valid>=95": true,
+    "json_correct_type>=80": true,
+    "tools>=80": true,
+    "code>=50": true,
+    "retention>=80": true
+  }
+}

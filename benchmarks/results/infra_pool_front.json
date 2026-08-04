@@ -1,0 +1,264 @@
+{
+  "host": "http://192.168.1.5:4000",
+  "model": "qwen3.5:9b",
+  "warm": [
+    {
+      "wall_s": 5.81,
+      "load_s": 0.43,
+      "prompt_tokens": 24,
+      "prompt_eval_s": 0.25,
+      "gen_tokens": 256,
+      "gen_s": 5.06,
+      "tok_per_s": 50.6
+    },
+    {
+      "wall_s": 5.94,
+      "load_s": 0.43,
+      "prompt_tokens": 24,
+      "prompt_eval_s": 0.36,
+      "gen_tokens": 256,
+      "gen_s": 5.05,
+      "tok_per_s": 50.7
+    },
+    {
+      "wall_s": 7.45,
+      "load_s": 0.31,
+      "prompt_tokens": 24,
+      "prompt_eval_s": 0.19,
+      "gen_tokens": 256,
+      "gen_s": 6.78,
+      "tok_per_s": 37.7
+    }
+  ],
+  "concurrency": {
+    "1": {
+      "wall_s": 3.6,
+      "per_stream_tok_s": [
+        78.8
+      ],
+      "aggregate_tok_s": 71.1,
+      "runs": [
+        {
+          "wall_s": 3.6,
+          "load_s": 0.25,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.06,
+          "gen_tokens": 256,
+          "gen_s": 3.25,
+          "tok_per_s": 78.8
+        }
+      ]
+    },
+    "2": {
+      "wall_s": 7.32,
+      "per_stream_tok_s": [
+        37.6,
+        50.6
+      ],
+      "aggregate_tok_s": 69.9,
+      "runs": [
+        {
+          "wall_s": 7.32,
+          "load_s": 0.25,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.1,
+          "gen_tokens": 256,
+          "gen_s": 6.81,
+          "tok_per_s": 37.6
+        },
+        {
+          "wall_s": 5.99,
+          "load_s": 0.45,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.41,
+          "gen_tokens": 256,
+          "gen_s": 5.06,
+          "tok_per_s": 50.6
+        }
+      ]
+    },
+    "4": {
+      "wall_s": 7.49,
+      "per_stream_tok_s": [
+        50.8,
+        50.0,
+        79.7,
+        36.7
+      ],
+      "aggregate_tok_s": 136.7,
+      "runs": [
+        {
+          "wall_s": 5.81,
+          "load_s": 0.45,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.25,
+          "gen_tokens": 256,
+          "gen_s": 5.04,
+          "tok_per_s": 50.8
+        },
+        {
+          "wall_s": 5.72,
+          "load_s": 0.44,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.1,
+          "gen_tokens": 256,
+          "gen_s": 5.12,
+          "tok_per_s": 50.0
+        },
+        {
+          "wall_s": 3.55,
+          "load_s": 0.25,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.05,
+          "gen_tokens": 256,
+          "gen_s": 3.21,
+          "tok_per_s": 79.7
+        },
+        {
+          "wall_s": 7.49,
+          "load_s": 0.28,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.08,
+          "gen_tokens": 256,
+          "gen_s": 6.97,
+          "tok_per_s": 36.7
+        }
+      ]
+    },
+    "8": {
+      "wall_s": 11.56,
+      "per_stream_tok_s": [
+        50.5,
+        36.1,
+        80.1,
+        50.6,
+        78.6,
+        50.7,
+        50.5,
+        79.8
+      ],
+      "aggregate_tok_s": 177.2,
+      "runs": [
+        {
+          "wall_s": 5.92,
+          "load_s": 0.43,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.34,
+          "gen_tokens": 256,
+          "gen_s": 5.07,
+          "tok_per_s": 50.5
+        },
+        {
+          "wall_s": 7.6,
+          "load_s": 0.27,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.08,
+          "gen_tokens": 256,
+          "gen_s": 7.09,
+          "tok_per_s": 36.1
+        },
+        {
+          "wall_s": 7.13,
+          "load_s": 0.24,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.05,
+          "gen_tokens": 256,
+          "gen_s": 3.2,
+          "tok_per_s": 80.1
+        },
+        {
+          "wall_s": 5.85,
+          "load_s": 0.44,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.28,
+          "gen_tokens": 256,
+          "gen_s": 5.06,
+          "tok_per_s": 50.6
+        },
+        {
+          "wall_s": 3.6,
+          "load_s": 0.25,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.05,
+          "gen_tokens": 256,
+          "gen_s": 3.26,
+          "tok_per_s": 78.6
+        },
+        {
+          "wall_s": 11.47,
+          "load_s": 0.44,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.08,
+          "gen_tokens": 256,
+          "gen_s": 5.05,
+          "tok_per_s": 50.7
+        },
+        {
+          "wall_s": 11.56,
+          "load_s": 0.44,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.08,
+          "gen_tokens": 256,
+          "gen_s": 5.07,
+          "tok_per_s": 50.5
+        },
+        {
+          "wall_s": 10.67,
+          "load_s": 0.25,
+          "prompt_tokens": 29,
+          "prompt_eval_s": 0.05,
+          "gen_tokens": 256,
+          "gen_s": 3.21,
+          "tok_per_s": 79.8
+        }
+      ]
+    }
+  },
+  "context": {
+    "2000": {
+      "wall_s": 2.82,
+      "load_s": 0.3,
+      "prompt_tokens": 1803,
+      "prompt_eval_s": 2.48,
+      "gen_tokens": 2,
+      "gen_s": 0.03,
+      "tok_per_s": 72.4,
+      "prompt_eval_tok_s": 727.0
+    },
+    "8000": {
+      "wall_s": 2.53,
+      "load_s": 0.27,
+      "prompt_tokens": 7138,
+      "prompt_eval_s": 2.16,
+      "gen_tokens": 3,
+      "gen_s": 0.03,
+      "tok_per_s": 97.2,
+      "prompt_eval_tok_s": 3304.6
+    },
+    "16000": {
+      "wall_s": 9.73,
+      "load_s": 0.46,
+      "prompt_tokens": 14248,
+      "prompt_eval_s": 9.06,
+      "gen_tokens": 3,
+      "gen_s": 0.05,
+      "tok_per_s": 61.9,
+      "prompt_eval_tok_s": 1572.6
+    }
+  },
+  "cold": {
+    "wall_s": 0.47,
+    "load_s": 0.25,
+    "prompt_tokens": 13,
+    "prompt_eval_s": 0.05,
+    "gen_tokens": 8,
+    "gen_s": 0.09,
+    "tok_per_s": 86.6
+  },
+  "summary": {
+    "warm_tok_s_median": 50.6,
+    "cold_load_s": 0.25,
+    "aggregate_tok_s_at_4": 136.7,
+    "scaling_4_vs_1": 1.92
+  }
+}
