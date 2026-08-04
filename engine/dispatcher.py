@@ -343,9 +343,14 @@ class Dispatcher:
             elif status == "blocked":
                 await self._block(item, kt.get("block_reason") or "hermes reported blocked",
                                   event_type="task.blocked")
-                # machine failure (crashed worker, capability gap) -> consultant;
-                # needs_input stays blocked for the shareholder answer button
-                if kt.get("block_kind") != "needs_input":
+                # any block goes to the consultant when one is employed —
+                # including questions: shareholder policy is the consultant
+                # makes the call. A consultant's own block stays for the human.
+                if kt.get("block_kind") == "needs_input":
+                    await self._escalate(item, "the worker asked for a human decision; "
+                                         "make that decision yourself with best judgment and "
+                                         "record the decision and rationale in your report")
+                else:
                     await self._escalate(item, "local worker failed "
                                          f"({kt.get('last_failure_error') or kt.get('block_kind') or 'blocked'})")
             elif await self._over_budget(item):
@@ -446,8 +451,7 @@ class Dispatcher:
         if msg.message_type == "task.completed":
             new_status = "done"
         else:
-            # ponytail: blocked-for-triage covers clarification/approval/progressed;
-            # manager triage flow upgrades this in the next increment
+            # blocked-for-triage; consultant takes it below if one is employed
             new_status = "blocked"
 
         async with db.pool.connection() as conn:
@@ -474,4 +478,10 @@ class Dispatcher:
                     await db.append_event(conn, actor="system", event_type="cost.recorded",
                                           company_id=item["company_id"], work_item_id=item["id"],
                                           payload={"wall_seconds": round(wall, 1)})
+        if new_status == "blocked":
+            await self._escalate(
+                item, f"the worker stopped with {msg.message_type} "
+                f"({str(msg.summary or '')[:200]}); make any needed decision yourself "
+                "with best judgment, finish the deliverable, and record the decision "
+                "and rationale in your report")
         log.info("finished %s -> %s (%s)", item["id"], new_status, msg.message_type)
