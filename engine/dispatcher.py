@@ -208,10 +208,12 @@ class Dispatcher:
     # ------------------------------------------------------------ polling
 
     async def _poll_in_flight(self) -> None:
+        # blocked items are polled too: Hermes retries transient blocks itself,
+        # so a blocked work item whose kanban task is active again must resume
         items = await db.fetch_all(
             "SELECT wi.*, e.id AS employee_id FROM work_item wi "
             "JOIN employee e ON e.id = wi.owner_id "
-            "WHERE wi.status = 'in_progress' AND wi.hermes_task_id IS NOT NULL"
+            "WHERE wi.status IN ('in_progress','blocked') AND wi.hermes_task_id IS NOT NULL"
         )
         for item in items:
             try:
@@ -220,6 +222,13 @@ class Dispatcher:
                 log.warning("poll failed for %s: %s", item["hermes_task_id"], e)
                 continue
             status = kt.get("status")
+            if item["status"] == "blocked":
+                # resume only on ACTIVE kanban states; a done/review kanban task
+                # under a blocked item was already classified — re-finishing it
+                # every tick would spam events and duplicate cost entries
+                if status in ("running", "ready", "todo", "scheduled"):
+                    await self._resume(item)
+                continue
             if status in ("review", "done"):
                 await self._finish(item, kt)
             elif status == "blocked":
@@ -228,6 +237,19 @@ class Dispatcher:
             elif await self._over_budget(item):
                 await self._cap(item, kt)
             # todo/scheduled/ready/running: still waiting
+
+    async def _resume(self, item: dict) -> None:
+        async with db.pool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    "UPDATE work_item SET status='in_progress', updated_at=now() WHERE id=%s",
+                    (item["id"],))
+                await conn.execute(
+                    "UPDATE employee SET status='working' WHERE id=%s", (item["employee_id"],))
+                await db.append_event(conn, actor="system", event_type="task.resumed",
+                                      company_id=item["company_id"], work_item_id=item["id"],
+                                      payload={"note": "hermes task active again"})
+        log.info("resumed %s", item["id"])
 
     async def _over_budget(self, item: dict) -> bool:
         if not item["dispatched_at"]:

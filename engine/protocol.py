@@ -26,6 +26,9 @@ EXTRACT_SYSTEM = (
     "the options given\n"
     "- approval.requested: needs authority the employee lacks\n"
     "- incident.declared: something broke that affects others\n"
+    "A QA/review/audit task that finished its checks is task.completed even "
+    "when it found defects in the thing under test — findings are its "
+    "deliverable, not a blocker.\n"
     "Copy concrete facts (files, commits, test counts) into summary/detail. "
     "Do not invent facts not present in the report."
 )
