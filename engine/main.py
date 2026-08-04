@@ -4,6 +4,7 @@ Run: uvicorn engine.main:app --reload --port 8100
 """
 from contextlib import asynccontextmanager
 from pathlib import Path
+from uuid import UUID
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
@@ -273,6 +274,25 @@ async def create_objective(slug: str, body: ObjectiveCreate) -> dict:
 
     return {"objective_id": str(objective_id), "tasks": children,
             "clarification_needed": plan.get("clarification_needed") or None}
+
+
+class DirectiveCreate(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+
+
+@app.post("/companies/{slug}/directives", status_code=201)
+async def shareholder_directive(slug: str, body: DirectiveCreate) -> dict:
+    """Shareholder line: free-form message becomes an objective the manager
+    decomposes; completion comes back as a milestone.update event."""
+    title = body.message.strip().splitlines()[0][:80]
+    result = await create_objective(slug, ObjectiveCreate(title=title, brief=body.message))
+    company = await db.fetch_one("SELECT id FROM company WHERE slug = %s", slug)
+    async with db.pool.connection() as conn:
+        await db.append_event(
+            conn, actor="shareholder:philip", event_type="directive.received",
+            company_id=company["id"], work_item_id=UUID(result["objective_id"]),
+            source="api", payload={"message": body.message[:500]})
+    return result
 
 
 @app.get("/companies/{slug}/work-items")

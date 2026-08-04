@@ -54,21 +54,27 @@ DECOMPOSE_FORMAT: dict[str, Any] = {
 
 async def _chat_structured(system: str, user: str, fmt: dict) -> dict:
     async with httpx.AsyncClient(timeout=180) as client:
-        r = await client.post(
-            f"{settings.ollama_pool_url}/api/chat",
-            json={
-                "model": MODEL,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                "stream": False,
-                "think": False,
-                "format": fmt,
-            },
-        )
-        r.raise_for_status()
-        return json.loads(r.json()["message"]["content"])
+        for attempt in (1, 2):  # pool occasionally returns empty content; one retry
+            r = await client.post(
+                f"{settings.ollama_pool_url}/api/chat",
+                json={
+                    "model": MODEL,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    "stream": False,
+                    "think": False,
+                    "format": fmt,
+                },
+            )
+            r.raise_for_status()
+            try:
+                return json.loads(r.json()["message"]["content"])
+            except json.JSONDecodeError:
+                if attempt == 2:
+                    raise
+        raise RuntimeError("unreachable")
 
 
 async def extract_agent_message(work_item_id: str, raw_report: str) -> AgentMessage:
@@ -79,6 +85,26 @@ async def extract_agent_message(work_item_id: str, raw_report: str) -> AgentMess
     )
     data["work_item_id"] = work_item_id  # never trust the model with the ID
     return AgentMessage.model_validate(data)
+
+
+CEO_UPDATE_FORMAT: dict[str, Any] = {
+    "type": "object",
+    "properties": {"update": {"type": "string"}},
+    "required": ["update"],
+}
+
+
+async def ceo_update(company_name: str, objective_title: str, task_lines: list[str]) -> str:
+    """CEO-voiced 2-4 sentence shareholder update for a completed objective."""
+    system = (
+        f"You are the CEO of {company_name} writing a short shareholder update "
+        "(2-4 sentences). Report the milestone plainly: what shipped and what "
+        "comes next. No hype. Do not invent facts not in the task list."
+    )
+    user = (f"Milestone reached: {objective_title}\nCompleted tasks:\n"
+            + "\n".join(f"- {t}" for t in task_lines))
+    data = await _chat_structured(system, user, CEO_UPDATE_FORMAT)
+    return data["update"]
 
 
 async def decompose_objective(brief: str, company_name: str) -> dict:

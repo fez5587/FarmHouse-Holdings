@@ -29,6 +29,8 @@
   button { background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:6px;
            padding:.4rem .9rem; cursor:pointer; font-size:.85rem; }
   button:hover { border-color:var(--dim); }
+  textarea { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; resize:vertical; margin-bottom:.4rem; }
   #pausebtn.paused { color:var(--bad); border-color:var(--bad); }
   .muted { color:var(--dim); }
 </style>
@@ -51,7 +53,21 @@ async function togglePause() {
   refresh();
 }
 
+async function sendDirective(ev, slug) {
+  ev.preventDefault();
+  const el = document.getElementById('dir-' + slug);
+  const message = el.value.trim();
+  if (!message) return false;
+  await j(`/companies/${slug}/directives`, {method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({message})});
+  el.value = '';
+  refresh();
+  return false;
+}
+
 async function refresh() {
+  // don't clobber a directive mid-typing
+  if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
   try {
     const h = await j('/health');
     paused = h.paused;
@@ -80,6 +96,14 @@ async function refresh() {
         const txt = p.summary ?? p.reason ?? p.title ?? p.question ?? p.name ?? '';
         return `<div class="ev"><span class="t">${t}</span><span class="type">${e.event_type}</span>${String(txt).slice(0,120)}</div>`;
       }).join('');
+      const CEO_EVENTS = ['milestone.update', 'directive.received', 'clarification.requested'];
+      const ceoFeed = events.filter(e => CEO_EVENTS.includes(e.event_type)).map(e => {
+        const t = new Date(e.created_at).toLocaleTimeString();
+        const p = e.payload ?? {};
+        const txt = p.summary ?? p.message ?? p.question ?? '';
+        const who = e.event_type === 'directive.received' ? '🧑‍💼 you' : '👔 CEO';
+        return `<div class="ev"><span class="t">${t}</span><span class="type">${who}</span>${String(txt).slice(0,300)}</div>`;
+      }).join('');
       html += `<div class="card"><h1>${c.name} <span class="pill ${c.lifecycle_state}">${c.lifecycle_state}</span></h1>
         <div class="grid">
           <div>
@@ -87,7 +111,15 @@ async function refresh() {
             <h2>Objectives</h2><table>${objs || '<tr><td class="muted">none</td></tr>'}</table>
             <h2>Work items</h2><table>${rows || '<tr><td class="muted">none</td></tr>'}</table>
           </div>
-          <div><h2>Event feed</h2><div class="feed">${feed}</div></div>
+          <div>
+            <h2>Shareholder line</h2>
+            <form onsubmit="return sendDirective(event, '${c.slug}')">
+              <textarea id="dir-${c.slug}" rows="2" placeholder="Directive to ${c.name} leadership…"></textarea>
+              <button type="submit">Send directive</button>
+            </form>
+            <h2>CEO updates</h2><div class="feed">${ceoFeed || '<div class="muted">no updates yet</div>'}</div>
+            <h2>Event feed</h2><div class="feed">${feed}</div>
+          </div>
         </div></div>`;
     }
     document.getElementById('companies').innerHTML = html || '<p class="muted">No companies yet.</p>';

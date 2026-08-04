@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 from engine import db
 from engine.hermes_client import HermesClient, HermesError
-from engine.protocol import extract_agent_message
+from engine.protocol import ceo_update, extract_agent_message
 
 log = logging.getLogger("farmhouse.dispatcher")
 
@@ -81,7 +81,8 @@ class Dispatcher:
     async def _roll_up_objectives(self) -> None:
         rows = await db.fetch_all(
             """
-            SELECT o.id, o.company_id FROM work_item o
+            SELECT o.id, o.company_id, o.title, o.owner_id, c.name AS company_name
+            FROM work_item o JOIN company c ON c.id = o.company_id
             WHERE o.type = 'objective' AND o.status = 'in_progress'
               AND EXISTS (SELECT 1 FROM work_item c WHERE c.parent_id = o.id)
               AND NOT EXISTS (SELECT 1 FROM work_item c
@@ -89,6 +90,16 @@ class Dispatcher:
             """
         )
         for row in rows:
+            children = await db.fetch_all(
+                "SELECT title, status FROM work_item WHERE parent_id=%s ORDER BY created_at",
+                row["id"])
+            task_lines = [f"{c['title']} ({c['status']})" for c in children]
+            try:
+                update = await ceo_update(row["company_name"], row["title"], task_lines)
+            except Exception:
+                log.exception("ceo_update failed; falling back to plain summary")
+                update = (f"Milestone reached: {row['title']} — "
+                          f"all {len(children)} tasks closed.")
             async with db.pool.connection() as conn:
                 async with conn.transaction():
                     await conn.execute(
@@ -97,6 +108,11 @@ class Dispatcher:
                     await db.append_event(conn, actor="system", event_type="work_item.updated",
                                           company_id=row["company_id"], work_item_id=row["id"],
                                           payload={"status": "done", "note": "all child tasks done"})
+                    await db.append_event(
+                        conn, actor=f"employee:{row['owner_id']}",
+                        event_type="milestone.update",
+                        company_id=row["company_id"], work_item_id=row["id"],
+                        payload={"objective_title": row["title"], "summary": update})
             log.info("objective %s rolled up to done", row["id"])
 
     async def _dispatch_ready(self) -> None:
