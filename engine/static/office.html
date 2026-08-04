@@ -63,7 +63,7 @@ const ROOMS = {
   conf: { test:(x,y)=> x>18*T && y<8*T,  W:[17*T+8, 4*T+8],  D:[19*T+8, 4*T+8] },
   lab:  { test:(x,y)=> x>20*T && y>12*T, W:[24*T+8, 11*T+8], D:[24*T+8, 13*T+8] },
 };
-const ROLE_SHIRT = { manager:'#e0b354', engineer:'#5c9de0', qa:'#b48ce0' };
+const ROLE_SHIRT = { manager:'#e0b354', engineer:'#5c9de0', qa:'#b48ce0', consultant:'#e6e2d8' };
 const HAIR = ['#3a2a1c','#151412','#c9a24b','#8a3b22','#4a4e57'];
 const px = (x,y,w,h,c) => { ctx.fillStyle=c; ctx.fillRect(x|0,y|0,w,h); };
 const hash = s => [...s].reduce((a,ch)=>(a*31+ch.charCodeAt(0))>>>0, 7);

@@ -19,7 +19,7 @@ CREATE TABLE employee (
     name            text NOT NULL,
     title           text NOT NULL,
     role            text NOT NULL DEFAULT 'engineer'
-                    CHECK (role IN ('manager','engineer','qa')),
+                    CHECK (role IN ('manager','engineer','qa','consultant')),
     department      text NOT NULL DEFAULT '',
     manager_id      uuid REFERENCES employee(id),
     hermes_profile  text,                       -- Hermes profile name (ADR-001)

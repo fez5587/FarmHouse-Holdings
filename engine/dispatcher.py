@@ -163,6 +163,25 @@ class Dispatcher:
                         event_type="milestone.update",
                         company_id=row["company_id"], work_item_id=row["id"],
                         payload={"objective_title": row["title"], "summary": update})
+                    # milestone hit + consultant employed -> independent delivery check
+                    consultant = await self._consultant_for(row["company_id"])
+                    if consultant:
+                        await conn.execute(
+                            "INSERT INTO work_item (company_id, parent_id, type, title, "
+                            "description, status, owner_id, acceptance_criteria) "
+                            "VALUES (%s, %s, 'review', %s, %s, 'ready', %s, %s)",
+                            (row["company_id"], row["id"],
+                             f"Milestone delivery check: {row['title'][:60]}",
+                             "The objective just completed. Independently verify delivery: "
+                             "read the deliverable files in the workspace produced by its "
+                             "tasks (their reports are appended below), check each against "
+                             "the stated acceptance criteria, and write "
+                             "milestone-check.md (overwrite if present) with a verdict per "
+                             "deliverable — delivered / partial / missing — plus any "
+                             "defects found. Do not fix anything yourself.",
+                             consultant["id"],
+                             db.Json(["milestone-check.md exists with a verdict per "
+                                      "deliverable and evidence for each verdict"])))
             log.info("objective %s rolled up to done", row["id"])
 
     async def _dispatch_ready(self) -> None:
@@ -284,9 +303,44 @@ class Dispatcher:
             elif status == "blocked":
                 await self._block(item, kt.get("block_reason") or "hermes reported blocked",
                                   event_type="task.blocked")
+                # machine failure (crashed worker, capability gap) -> consultant;
+                # needs_input stays blocked for the shareholder answer button
+                if kt.get("block_kind") != "needs_input":
+                    await self._escalate(item, "local worker failed "
+                                         f"({kt.get('last_failure_error') or kt.get('block_kind') or 'blocked'})")
             elif await self._over_budget(item):
                 await self._cap(item, kt)
+                await self._escalate(item, "wall-clock budget exceeded")
             # todo/scheduled/ready/running: still waiting
+
+    async def _consultant_for(self, company_id) -> dict | None:
+        return await db.fetch_one(
+            "SELECT id, name FROM employee WHERE company_id = %s AND role = 'consultant' "
+            "ORDER BY created_at LIMIT 1", company_id)
+
+    async def _escalate(self, item: dict, reason: str) -> bool:
+        """Manager policy: hand a failing task to the company consultant.
+        Only fires when a consultant is employed (hiring one = opting in to
+        external billing) and the failing owner isn't already the consultant."""
+        consultant = await self._consultant_for(item["company_id"])
+        if not consultant or consultant["id"] == item["owner_id"]:
+            return False
+        note = (f"\n\n[Escalated to consultant {consultant['name']}: {reason}. "
+                "A previous attempt by local staff did not deliver; produce the "
+                "deliverable yourself, completely.]")
+        async with db.pool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    "UPDATE work_item SET owner_id=%s, status='ready', hermes_task_id=NULL, "
+                    "description=description || %s, updated_at=now() WHERE id=%s",
+                    (consultant["id"], note, item["id"]))
+                await conn.execute(
+                    "UPDATE employee SET status='idle' WHERE id=%s", (item["employee_id"],))
+                await db.append_event(conn, actor="system", event_type="task.escalated",
+                                      company_id=item["company_id"], work_item_id=item["id"],
+                                      payload={"to": consultant["name"], "reason": reason})
+        log.info("escalated %s to consultant (%s)", item["id"], reason)
+        return True
 
     async def _resume(self, item: dict) -> None:
         async with db.pool.connection() as conn:
