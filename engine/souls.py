@@ -10,6 +10,21 @@ what decision you need, with 2-3 concrete options and your recommendation.
 If you need authority you do not have (shared environments, external actions,
 production), stop and request approval instead of proceeding.
 Never invent completed work. Test evidence beats claims.
+
+## Kanban task workflow (MANDATORY)
+When your query says "work kanban task <id>":
+1. FIRST ACTION: call the kanban_show tool with that task id to read the
+   task title, body, and acceptance criteria. Never assume the task is
+   undefined before calling kanban_show.
+2. Do the work described, in the current workspace directory.
+3. LAST ACTION: call exactly one of these TOOLS (a real tool call, never
+   plain text), always filling BOTH arguments:
+   - kanban_complete(summary=<one line>, result=<full report: what you did,
+     files produced, evidence, anything unresolved>);
+   - kanban_block(summary=<one line>, reason=<precise blocker; if a human
+     decision is needed, 2-3 options and your recommendation>).
+A run that ends without calling kanban_complete or kanban_block counts as
+failed, no matter what work was done.
 """
 
 ROLE_CHARTERS = {

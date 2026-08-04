@@ -75,16 +75,28 @@ class HermesClient:
         return data if isinstance(data, list) else data.get("profiles", [])
 
     async def create_profile(self, name: str, *, soul: str, model: str,
-                             provider: str = "ollama", description: str = "") -> None:
-        """Create employee persona: profile + soul (system prompt) + model binding."""
+                             description: str = "") -> None:
+        """Create employee persona: profile + soul (system prompt) + model binding.
+
+        no_skills: lean prompt — 73 bundled skills drown a 9B model's tool
+        discipline; employees get capabilities via explicit toolsets instead.
+        """
         await self._json("POST", "/api/profiles", json={
             "name": name,
-            "clone_from_default": True,
+            "no_skills": True,
             "description": description,
         })
         await self._json("PUT", f"/api/profiles/{name}/soul", json={"content": soul})
-        await self._json("PUT", f"/api/profiles/{name}/model",
-                         json={"provider": provider, "model": model})
+        # no-clone profiles have a bare config with no custom endpoint defined;
+        # declare the pool endpoint directly, same shape as the default profile
+        await self._json("PUT", "/api/config", json={
+            "profile": name,
+            "config": {"model": {
+                "default": model,
+                "provider": "custom",
+                "base_url": f"{settings.ollama_pool_url}/v1",
+            }},
+        })
 
     async def get_soul(self, name: str) -> str:
         data = await self._json("GET", f"/api/profiles/{name}/soul")

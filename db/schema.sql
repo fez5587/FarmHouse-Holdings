@@ -18,6 +18,8 @@ CREATE TABLE employee (
     company_id      uuid NOT NULL REFERENCES company(id),
     name            text NOT NULL,
     title           text NOT NULL,
+    role            text NOT NULL DEFAULT 'engineer'
+                    CHECK (role IN ('manager','engineer','qa')),
     department      text NOT NULL DEFAULT '',
     manager_id      uuid REFERENCES employee(id),
     hermes_profile  text,                       -- Hermes profile name (ADR-001)
@@ -48,6 +50,8 @@ CREATE TABLE work_item (
     acceptance_criteria jsonb NOT NULL DEFAULT '[]',
     -- runaway caps, engine-enforced (PRD_ADDENDUM §3): max_iterations, max_tokens, max_wall_seconds
     budget          jsonb NOT NULL DEFAULT '{"max_iterations":15,"max_tokens":100000,"max_wall_seconds":1800}',
+    hermes_task_id  text,                               -- kanban task carrying this item's current run
+    dispatched_at   timestamptz,
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now()
 );
