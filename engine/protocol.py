@@ -5,6 +5,7 @@ trusting the worker to format correctly mid-run, the engine converts each raw
 report with one schema-enforced pool call (qwen3.5:9b scored 100% validity
 under `format` enforcement — benchmarks/RESULTS.md).
 """
+import asyncio
 import json
 from typing import Any
 
@@ -58,7 +59,7 @@ DECOMPOSE_FORMAT: dict[str, Any] = {
 
 async def _chat_structured(system: str, user: str, fmt: dict) -> dict:
     async with httpx.AsyncClient(timeout=180) as client:
-        for attempt in (1, 2):  # pool occasionally returns empty content; one retry
+        for attempt in (1, 2, 3):  # pool returns empty content under load; retry with backoff
             r = await client.post(
                 f"{settings.ollama_pool_url}/api/chat",
                 json={
@@ -76,8 +77,9 @@ async def _chat_structured(system: str, user: str, fmt: dict) -> dict:
             try:
                 return json.loads(r.json()["message"]["content"])
             except json.JSONDecodeError:
-                if attempt == 2:
+                if attempt == 3:
                     raise
+                await asyncio.sleep(3 * attempt)
         raise RuntimeError("unreachable")
 
 
