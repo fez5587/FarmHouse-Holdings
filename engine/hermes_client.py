@@ -105,6 +105,11 @@ class HermesClient:
     async def delete_profile(self, name: str) -> None:
         await self._json("DELETE", f"/api/profiles/{name}")
 
+    # ------------------------------------------------------------ files
+
+    async def mkdir(self, path: str) -> None:
+        await self._json("POST", "/api/files/mkdir", json={"path": path})
+
     # ------------------------------------------------------------ kanban (= work dispatch)
 
     async def create_task(self, title: str, *, body: str, assignee: str, tenant: str,

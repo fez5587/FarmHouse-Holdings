@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FarmHouse Holdings</title>
+<style>
+  :root { --bg:#101418; --card:#1a2027; --text:#d8dee6; --dim:#8a94a0; --line:#2a323c;
+          --ok:#4caf7d; --warn:#e0b354; --bad:#e06c5c; --run:#5c9de0; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--text); font:14px/1.5 system-ui, sans-serif; padding:1.5rem; }
+  h1 { font-size:1.2rem; margin-bottom:1rem; display:flex; align-items:center; gap:.75rem; }
+  h2 { font-size:.95rem; color:var(--dim); margin:1.2rem 0 .5rem; text-transform:uppercase; letter-spacing:.05em; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1rem; margin-bottom:1rem; }
+  table { width:100%; border-collapse:collapse; }
+  td,th { padding:.35rem .5rem; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:500; font-size:.8rem; }
+  .pill { display:inline-block; padding:.05rem .5rem; border-radius:99px; font-size:.75rem; border:1px solid var(--line); }
+  .pill.done,.pill.idle,.pill.active { color:var(--ok); border-color:var(--ok); }
+  .pill.in_progress,.pill.working { color:var(--run); border-color:var(--run); }
+  .pill.blocked { color:var(--bad); border-color:var(--bad); }
+  .pill.ready,.pill.backlog { color:var(--warn); border-color:var(--warn); }
+  .feed { max-height:32rem; overflow-y:auto; font-size:.8rem; }
+  .feed .ev { padding:.3rem 0; border-bottom:1px solid var(--line); }
+  .feed .t { color:var(--dim); margin-right:.5rem; }
+  .feed .type { color:var(--run); margin-right:.5rem; }
+  button { background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:6px;
+           padding:.4rem .9rem; cursor:pointer; font-size:.85rem; }
+  button:hover { border-color:var(--dim); }
+  #pausebtn.paused { color:var(--bad); border-color:var(--bad); }
+  .muted { color:var(--dim); }
+</style>
+</head>
+<body>
+<h1>🏠 FarmHouse Holdings
+  <span id="health" class="pill">…</span>
+  <button id="pausebtn" onclick="togglePause()">…</button>
+</h1>
+<div id="companies"></div>
+<script>
+let paused = false;
+
+async function j(url, opts) { const r = await fetch(url, opts); return r.json(); }
+
+function pill(s) { return `<span class="pill ${s}">${s}</span>`; }
+
+async function togglePause() {
+  await j(paused ? '/resume' : '/pause', {method:'POST'});
+  refresh();
+}
+
+async function refresh() {
+  try {
+    const h = await j('/health');
+    paused = h.paused;
+    document.getElementById('health').textContent = h.status;
+    document.getElementById('health').className = 'pill ' + (h.status === 'ok' ? 'done' : 'blocked');
+    const b = document.getElementById('pausebtn');
+    b.textContent = paused ? '▶ RESUME (paused)' : '⏸ PAUSE ALL';
+    b.className = paused ? 'paused' : '';
+
+    const companies = await j('/companies');
+    let html = '';
+    for (const c of companies) {
+      if (c.lifecycle_state === 'archived') continue;
+      const [detail, items, events] = await Promise.all([
+        j(`/companies/${c.slug}`), j(`/companies/${c.slug}/work-items`),
+        j(`/companies/${c.slug}/events?limit=40`)]);
+      const emps = detail.employees.map(e =>
+        `<tr><td>${e.name}</td><td class="muted">${e.title}</td><td>${pill(e.status)}</td></tr>`).join('');
+      const rows = items.filter(w => w.type !== 'objective').map(w =>
+        `<tr><td>${w.title}</td><td class="muted">${w.owner_name ?? ''}</td><td>${pill(w.status)}</td></tr>`).join('');
+      const objs = items.filter(w => w.type === 'objective').map(w =>
+        `<tr><td>${w.title}</td><td>${pill(w.status)}</td></tr>`).join('');
+      const feed = events.map(e => {
+        const t = new Date(e.created_at).toLocaleTimeString();
+        const p = e.payload ?? {};
+        const txt = p.summary ?? p.reason ?? p.title ?? p.question ?? p.name ?? '';
+        return `<div class="ev"><span class="t">${t}</span><span class="type">${e.event_type}</span>${String(txt).slice(0,120)}</div>`;
+      }).join('');
+      html += `<div class="card"><h1>${c.name} <span class="pill ${c.lifecycle_state}">${c.lifecycle_state}</span></h1>
+        <div class="grid">
+          <div>
+            <h2>Employees</h2><table>${emps}</table>
+            <h2>Objectives</h2><table>${objs || '<tr><td class="muted">none</td></tr>'}</table>
+            <h2>Work items</h2><table>${rows || '<tr><td class="muted">none</td></tr>'}</table>
+          </div>
+          <div><h2>Event feed</h2><div class="feed">${feed}</div></div>
+        </div></div>`;
+    }
+    document.getElementById('companies').innerHTML = html || '<p class="muted">No companies yet.</p>';
+  } catch (e) {
+    document.getElementById('health').textContent = 'engine unreachable';
+    document.getElementById('health').className = 'pill blocked';
+  }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

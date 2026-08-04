@@ -85,7 +85,8 @@ class Dispatcher:
             return
         ready = await db.fetch_all(
             """
-            SELECT wi.*, e.hermes_profile, e.id AS employee_id, c.slug AS company_slug
+            SELECT wi.*, e.hermes_profile, e.id AS employee_id, c.slug AS company_slug,
+                   c.config AS company_config
             FROM work_item wi
             JOIN employee e ON e.id = wi.owner_id
             JOIN company c ON c.id = wi.company_id
@@ -108,6 +109,7 @@ class Dispatcher:
                 idempotency_key=str(item["id"]),
                 max_runtime_seconds=int(budget.get("max_wall_seconds", 1800)),
                 goal_max_turns=int(budget.get("max_iterations", 15)),
+                workspace_path=(item.get("company_config") or {}).get("workspace_path"),
             )
             await self.hermes.dispatch_now()
         except HermesError as e:

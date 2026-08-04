@@ -3,9 +3,11 @@
 Run: uvicorn engine.main:app --reload --port 8100
 """
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from engine import db
@@ -69,6 +71,11 @@ async def is_paused() -> bool:
 # ---------------------------------------------------------------- endpoints
 
 
+@app.get("/")
+async def dashboard() -> FileResponse:
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
+
+
 @app.get("/health")
 async def health() -> dict:
     row = await db.fetch_one("SELECT count(*) AS companies FROM company")
@@ -82,12 +89,13 @@ async def create_company(body: CompanyCreate) -> dict:
     if await db.fetch_one("SELECT id FROM company WHERE slug = %s", body.slug):
         raise HTTPException(409, f"company {body.slug!r} already exists")
 
+    workspace = f"/opt/data/farmhouse/{body.slug}"
     async with db.pool.connection() as conn:
         async with conn.transaction():
             cur = await conn.execute(
-                "INSERT INTO company (slug, name, description, lifecycle_state) "
-                "VALUES (%s, %s, %s, 'active') RETURNING id",
-                (body.slug, body.name, body.brief),
+                "INSERT INTO company (slug, name, description, lifecycle_state, config) "
+                "VALUES (%s, %s, %s, 'active', %s) RETURNING id",
+                (body.slug, body.name, body.brief, db.Json({"workspace_path": workspace})),
             )
             company_id = (await cur.fetchone())["id"]
             await db.append_event(conn, actor="user:philip", event_type="company.created",
@@ -109,8 +117,12 @@ async def create_company(body: CompanyCreate) -> dict:
                                                "title": spec.title, "role": spec.role})
                 employees.append({"id": emp_id, "spec": spec})
 
-    # Hermes profiles outside the tx: DB is source of truth; profile creation is
-    # retryable. Failure leaves employees hired with a repairable profile gap.
+    # Hermes-side setup outside the tx: DB is source of truth; both calls are
+    # retryable. Failure leaves employees hired with a repairable gap.
+    try:
+        await hermes.mkdir(workspace)
+    except HermesError:
+        pass  # dir may already exist
     profile_errors = []
     for emp in employees:
         spec = emp["spec"]
