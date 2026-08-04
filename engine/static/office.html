@@ -17,6 +17,8 @@
 </head>
 <body>
 <h1>🏠 FarmHouse Office <a href="/">← dashboard</a></h1>
+<div id="tabs"></div>
+<div id="objline" style="color:#8a94a0; font-size:.8rem; margin-bottom:.3rem;">…</div>
 <canvas id="c" width="480" height="320" style="width:960px"></canvas>
 <div id="legend">at desk = building · research room = researching · conference room = blocked, waiting on your answer · water cooler = idle</div>
 <div id="ticker">…</div>
@@ -177,6 +179,9 @@ async function poll() {
     const co = companies.find(c=>c.slug===want) ?? companies[0];
     if (!co) return;
     companyName = co.name;
+    document.getElementById('tabs').innerHTML = companies.length > 1
+      ? companies.map(c => `<a href="?company=${c.slug}" style="margin:0 .4rem; ${c.slug===co.slug?'font-weight:bold;':''}">${c.name}</a>`).join('')
+      : '';
     const [detail, items, events] = await Promise.all([
       fetch(`/companies/${co.slug}`).then(r=>r.json()),
       fetch(`/companies/${co.slug}/work-items`).then(r=>r.json()),
@@ -195,6 +200,9 @@ async function poll() {
         a.status = e.status; a.taskType = taskType; route(a, targetFor(a, i));
       }
     });
+    const activeObj = items.find(w => w.type === 'objective' && w.status === 'in_progress');
+    document.getElementById('objline').textContent =
+      activeObj ? `Objective: ${activeObj.title.slice(0,110)}` : 'No active objective';
     const ev = events[0];
     if (ev) document.getElementById('ticker').textContent =
       `${new Date(ev.created_at).toLocaleTimeString()} — ${ev.event_type}: ${JSON.stringify(ev.payload??{}).slice(0,120)}`;
