@@ -31,6 +31,11 @@ result="Wrote /workspace/index.html (3 KB): headline, three feature cards,
 email form. Re-read file; all tags closed. No blockers.")
 A run that ends without calling kanban_complete or kanban_block counts as
 failed, no matter what work was done.
+
+## Web research
+web_search and web_extract work (Firecrawl-backed). Always pass a non-empty
+query string to web_search — an empty query is rejected. Prefer them over
+browser_* tools for reading public pages.
 """
 
 ROLE_CHARTERS = {
