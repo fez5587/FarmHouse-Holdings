@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FarmHouse Office</title>
+<style>
+  body { background:#101418; color:#d8dee6; font:14px/1.5 system-ui, sans-serif;
+         margin:0; padding:1rem; text-align:center; }
+  h1 { font-size:1.1rem; } a { color:#5c9de0; }
+  canvas { image-rendering:pixelated; border:1px solid #2a323c; border-radius:8px;
+           background:#151b22; max-width:100%; }
+  #ticker { max-width:800px; margin:.5rem auto; color:#8a94a0; font-size:.8rem;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+</style>
+</head>
+<body>
+<h1>🏠 FarmHouse Office <a href="/">← dashboard</a></h1>
+<canvas id="c" width="400" height="220" style="width:800px"></canvas>
+<div id="ticker">…</div>
+<script>
+// Pixel office v0: every drawn state is real engine state (PRD 12: no fake activity).
+// desk row per employee; avatar color by role; LED + animation by live status.
+const ctx = document.getElementById('c').getContext('2d');
+const ROLE_COLORS = { manager:'#e0b354', engineer:'#5c9de0', qa:'#b48ce0' };
+const STATUS_LED = { idle:'#4caf7d', working:'#5c9de0', blocked:'#e06c5c' };
+let state = { companies: [] }, tick = 0;
+
+async function j(u) { return (await fetch(u)).json(); }
+
+async function poll() {
+  try {
+    const companies = (await j('/companies')).filter(c => c.lifecycle_state === 'active');
+    for (const c of companies) {
+      const [detail, items, events] = await Promise.all([
+        j(`/companies/${c.slug}`), j(`/companies/${c.slug}/work-items`),
+        j(`/companies/${c.slug}/events?limit=1`)]);
+      c.employees = detail.employees;
+      c.working = Object.fromEntries(items.filter(w => w.status === 'in_progress' && w.owner_name)
+        .map(w => [w.owner_name, w.title]));
+      c.lastEvent = events[0];
+    }
+    state.companies = companies;
+    const ev = companies[0]?.lastEvent;
+    if (ev) document.getElementById('ticker').textContent =
+      `${new Date(ev.created_at).toLocaleTimeString()} — ${ev.event_type}: ${JSON.stringify(ev.payload ?? {}).slice(0, 110)}`;
+  } catch (e) { document.getElementById('ticker').textContent = 'engine unreachable'; }
+}
+
+function px(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); }
+
+function drawEmployee(x, y, emp, workingOn) {
+  const c = ROLE_COLORS[emp.role] ?? '#8a94a0';
+  const working = emp.status === 'working';
+  const bob = working ? (tick >> 3) % 2 : 0;      // typing bob only when actually working
+  // desk
+  px(x - 4, y + 18, 28, 4, '#3a4653'); px(x - 2, y + 22, 3, 8, '#2a323c'); px(x + 19, y + 22, 3, 8, '#2a323c');
+  // monitor (lit only when working)
+  px(x + 12, y + 8 - 0, 10, 8, '#20262e'); px(x + 13, y + 9, 8, 6, working ? '#9fd0ff' : '#333c46');
+  // avatar: head, body, arms
+  px(x, y + bob, 8, 8, '#e8c39e');                // head
+  px(x - 1, y + 8 + bob, 10, 10, c);              // body
+  px(x - 3, y + 10 + bob, 2, 6, c); px(x + 9, y + 10 + bob, 2, 6, c);
+  // status LED
+  px(x + 22, y, 4, 4, STATUS_LED[emp.status] ?? '#8a94a0');
+  ctx.fillStyle = '#d8dee6'; ctx.font = '6px monospace';
+  ctx.fillText(`${emp.name} · ${emp.title}`, x - 4, y + 38);
+  if (workingOn) { ctx.fillStyle = '#8a94a0'; ctx.fillText(workingOn.slice(0, 34), x - 4, y + 45); }
+  if (emp.status === 'blocked') { ctx.fillStyle = '#e06c5c'; ctx.fillText('!? needs answer', x - 4, y + 45); }
+}
+
+function draw() {
+  tick++;
+  px(0, 0, 400, 220, '#151b22');
+  px(0, 200, 400, 20, '#1a2027'); // floor
+  let y = 24;
+  for (const c of state.companies) {
+    ctx.fillStyle = '#d8dee6'; ctx.font = '8px monospace';
+    ctx.fillText(`▪ ${c.name}`, 12, y - 10);
+    let x = 30;
+    for (const emp of c.employees ?? []) {
+      drawEmployee(x, y, emp, c.working?.[emp.name]);
+      x += 120;
+    }
+    y += 80;
+  }
+  requestAnimationFrame(draw);
+}
+
+poll(); setInterval(poll, 5000); draw();
+</script>
+</body>
+</html>

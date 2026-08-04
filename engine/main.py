@@ -77,6 +77,11 @@ async def dashboard() -> FileResponse:
     return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 
+@app.get("/office")
+async def office() -> FileResponse:
+    return FileResponse(Path(__file__).parent / "static" / "office.html")
+
+
 @app.get("/health")
 async def health() -> dict:
     row = await db.fetch_one("SELECT count(*) AS companies FROM company")
@@ -293,6 +298,46 @@ async def shareholder_directive(slug: str, body: DirectiveCreate) -> dict:
             company_id=company["id"], work_item_id=UUID(result["objective_id"]),
             source="api", payload={"message": body.message[:500]})
     return result
+
+
+class AnswerCreate(BaseModel):
+    answer: str = Field(min_length=1, max_length=4000)
+
+
+@app.post("/companies/{slug}/work-items/{item_id}/answer")
+async def answer_blocked_item(slug: str, item_id: UUID, body: AnswerCreate) -> dict:
+    """Shareholder answers a blocked/clarification item; work resumes."""
+    item = await db.fetch_one(
+        "SELECT wi.* FROM work_item wi JOIN company c ON c.id = wi.company_id "
+        "WHERE wi.id = %s AND c.slug = %s", item_id, slug)
+    if not item:
+        raise HTTPException(404, "no such work item")
+    if item["status"] != "blocked":
+        raise HTTPException(409, f"work item is {item['status']}, not blocked")
+
+    new_desc = f"{item['description']}\n\n## Shareholder answer\n{body.answer}"
+    if item["hermes_task_id"]:
+        # rerun the existing kanban task with the answer appended
+        try:
+            await hermes.update_task(item["hermes_task_id"], status="ready", body=new_desc)
+        except HermesError as e:
+            raise HTTPException(502, f"hermes update failed: {e}")
+        new_status = "in_progress"  # poll loop picks the rerun up
+    else:
+        new_status = "ready"  # never dispatched (e.g. dispatch.failed); dispatch fresh
+
+    async with db.pool.connection() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                "UPDATE work_item SET description=%s, status=%s, updated_at=now() WHERE id=%s",
+                (new_desc, new_status, item_id))
+            await conn.execute(
+                "UPDATE employee SET status='working' WHERE id=%s", (item["owner_id"],))
+            await db.append_event(
+                conn, actor="shareholder:philip", event_type="clarification.answered",
+                company_id=item["company_id"], work_item_id=item_id,
+                source="api", payload={"answer": body.answer[:500]})
+    return {"status": new_status}
 
 
 @app.get("/companies/{slug}/work-items")

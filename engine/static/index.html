@@ -37,6 +37,7 @@
 </head>
 <body>
 <h1>🏠 FarmHouse Holdings
+  <a href="/office" style="color:var(--run); font-size:.8rem; text-decoration:none;">🕹 office view</a>
   <span id="health" class="pill">…</span>
   <button id="pausebtn" onclick="togglePause()">…</button>
 </h1>
@@ -50,6 +51,15 @@ function pill(s) { return `<span class="pill ${s}">${s}</span>`; }
 
 async function togglePause() {
   await j(paused ? '/resume' : '/pause', {method:'POST'});
+  refresh();
+}
+
+async function answerItem(slug, id) {
+  const answer = window.prompt('Answer / unblock instruction for this task:');
+  if (!answer || !answer.trim()) return;
+  const r = await fetch(`/companies/${slug}/work-items/${id}/answer`, {method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({answer: answer.trim()})});
+  if (!r.ok) alert(`answer failed: ${(await r.json()).detail ?? r.status}`);
   refresh();
 }
 
@@ -86,8 +96,11 @@ async function refresh() {
         j(`/companies/${c.slug}/events?limit=40`)]);
       const emps = detail.employees.map(e =>
         `<tr><td>${e.name}</td><td class="muted">${e.title}</td><td>${pill(e.status)}</td></tr>`).join('');
-      const rows = items.filter(w => w.type !== 'objective').map(w =>
-        `<tr><td>${w.title}</td><td class="muted">${w.owner_name ?? ''}</td><td>${pill(w.status)}</td></tr>`).join('');
+      const rows = items.filter(w => w.type !== 'objective').map(w => {
+        const answer = w.status === 'blocked'
+          ? ` <button onclick="answerItem('${c.slug}','${w.id}')">answer</button>` : '';
+        return `<tr><td>${w.title}</td><td class="muted">${w.owner_name ?? ''}</td><td>${pill(w.status)}${answer}</td></tr>`;
+      }).join('');
       const objs = items.filter(w => w.type === 'objective').map(w =>
         `<tr><td>${w.title}</td><td>${pill(w.status)}</td></tr>`).join('');
       const feed = events.map(e => {
