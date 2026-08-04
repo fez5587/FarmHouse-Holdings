@@ -2,12 +2,13 @@
 
 Run: uvicorn engine.main:app --reload --port 8100
 """
+import base64
 from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import UUID
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -419,6 +420,43 @@ async def _set_company_state(slug: str, expect: str, new: str, event: str) -> di
                                   company_id=company["id"], source="api",
                                   payload={"scope": "company"})
     return {"slug": slug, "lifecycle_state": new}
+
+
+# ---------------------------------------------------------------- workspace files (demos)
+
+
+@app.get("/companies/{slug}/files")
+async def list_workspace_files(slug: str) -> list[dict]:
+    company = await db.fetch_one("SELECT * FROM company WHERE slug = %s", slug)
+    if not company:
+        raise HTTPException(404, "no such company")
+    workspace = (company["config"] or {}).get("workspace_path")
+    if not workspace:
+        return []
+    try:
+        entries = await hermes.list_dir(workspace)
+    except HermesError as e:
+        raise HTTPException(502, f"hermes list failed: {e}")
+    return [{"name": e["name"], "dir": e["isDirectory"]} for e in entries]
+
+
+@app.get("/companies/{slug}/files/{name}")
+async def get_workspace_file(slug: str, name: str) -> Response:
+    """Serve one top-level workspace file — lets the dashboard demo deliverables
+    (e.g. render index.html) straight from the company workspace."""
+    if "/" in name or "\\" in name or name.startswith("."):
+        raise HTTPException(400, "top-level plain filenames only")
+    company = await db.fetch_one("SELECT * FROM company WHERE slug = %s", slug)
+    if not company:
+        raise HTTPException(404, "no such company")
+    workspace = (company["config"] or {}).get("workspace_path")
+    try:
+        data = await hermes.read_file(f"{workspace}/{name}")
+    except HermesError as e:
+        raise HTTPException(404, f"file not readable: {e}")
+    b64 = data["data_url"].split(",", 1)[1]
+    return Response(content=base64.b64decode(b64),
+                    media_type=data.get("mime_type") or "application/octet-stream")
 
 
 # ---------------------------------------------------------------- global pause (kill switch v1)

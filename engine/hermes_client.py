@@ -113,6 +113,14 @@ class HermesClient:
     async def mkdir(self, path: str) -> None:
         await self._json("POST", "/api/files/mkdir", json={"path": path})
 
+    async def list_dir(self, path: str) -> list[dict]:
+        data = await self._json("GET", "/api/fs/list", params={"path": path})
+        return data.get("entries", [])
+
+    async def read_file(self, path: str) -> dict:
+        """Returns {name, path, size, mime_type, data_url} (base64 data URL)."""
+        return await self._json("GET", "/api/files/read", params={"path": path})
+
     # ------------------------------------------------------------ kanban (= work dispatch)
 
     async def create_task(self, title: str, *, body: str, assignee: str, tenant: str,

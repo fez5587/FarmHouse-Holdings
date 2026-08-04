@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 from engine import db
 from engine.hermes_client import HermesClient, HermesError
-from engine.protocol import ceo_update, extract_agent_message
+from engine.protocol import ceo_update, extract_agent_message, manager_status
 
 log = logging.getLogger("farmhouse.dispatcher")
 
@@ -78,6 +78,46 @@ class Dispatcher:
         await self._dispatch_ready()
         await self._roll_up_objectives()
         await self._manager_standup()
+        await self._status_updates()
+
+    STATUS_INTERVAL = "2 hours"
+
+    async def _status_updates(self) -> None:
+        """While work is in flight, the manager posts a short shareholder
+        status update every couple of hours, digested from real events."""
+        rows = await db.fetch_all(
+            """
+            SELECT c.id AS company_id, c.name, e.id AS manager_id
+            FROM company c JOIN employee e ON e.company_id = c.id AND e.role = 'manager'
+            WHERE c.lifecycle_state = 'active'
+              AND EXISTS (SELECT 1 FROM work_item w WHERE w.company_id = c.id
+                          AND w.status IN ('ready','in_progress') AND w.type <> 'objective')
+              AND NOT EXISTS (SELECT 1 FROM event ev WHERE ev.company_id = c.id
+                              AND ev.event_type IN ('status.update','milestone.update')
+                              AND ev.created_at > now() - interval %s)
+              AND (SELECT count(*) FROM event ev WHERE ev.company_id = c.id
+                   AND ev.created_at > now() - interval %s) >= 5
+            """, self.STATUS_INTERVAL, self.STATUS_INTERVAL)
+        for row in rows:
+            events = await db.fetch_all(
+                "SELECT event_type, payload FROM event WHERE company_id = %s "
+                "ORDER BY created_at DESC LIMIT 25", row["company_id"])
+            lines = []
+            for ev in reversed(events):
+                p = ev["payload"] or {}
+                txt = p.get("summary") or p.get("title") or p.get("reason") or p.get("note") or ""
+                lines.append(f"{ev['event_type']}: {str(txt)[:120]}")
+            try:
+                update = await manager_status(row["name"], lines)
+            except Exception:
+                log.exception("manager_status failed; skipping this interval")
+                continue
+            async with db.pool.connection() as conn:
+                await db.append_event(conn, actor=f"employee:{row['manager_id']}",
+                                      event_type="status.update",
+                                      company_id=row["company_id"],
+                                      payload={"summary": update})
+            log.info("status update posted for %s", row["name"])
 
     STANDUP_TITLE = "Team standup: plan next work"
 

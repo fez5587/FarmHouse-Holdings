@@ -113,6 +113,20 @@ async def ceo_update(company_name: str, objective_title: str, task_lines: list[s
     return data["update"]
 
 
+async def manager_status(company_name: str, event_lines: list[str]) -> str:
+    """Manager-voiced interim status update for the shareholder feed."""
+    system = (
+        f"You are the engineering manager at {company_name} writing a brief "
+        "status update to the company's shareholder (2-4 sentences). From the "
+        "recent activity log: what is moving, any risk or blocker worth "
+        "flagging, and the immediate next step or strategy. Plain, concrete, "
+        "no hype, no invented facts.")
+    data = await _chat_structured(
+        system, "Recent activity:\n" + "\n".join(f"- {ln}" for ln in event_lines),
+        CEO_UPDATE_FORMAT)
+    return data["update"]
+
+
 async def decompose_objective(brief: str, company_name: str) -> dict:
     """Manager-style decomposition into 2-5 small tasks. Returns validated dict."""
     system = (

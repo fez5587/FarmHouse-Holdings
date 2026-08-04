@@ -96,9 +96,10 @@ async function refresh() {
     let html = '';
     for (const c of companies) {
       if (c.lifecycle_state === 'archived') continue;
-      const [detail, items, events] = await Promise.all([
+      const [detail, items, events, files] = await Promise.all([
         j(`/companies/${c.slug}`), j(`/companies/${c.slug}/work-items`),
-        j(`/companies/${c.slug}/events?limit=40`)]);
+        j(`/companies/${c.slug}/events?limit=40`),
+        j(`/companies/${c.slug}/files`).catch(() => [])]);
       const emps = detail.employees.map(e =>
         `<tr><td>${e.name}</td><td class="muted">${e.title}</td><td>${pill(e.status)}</td></tr>`).join('');
       const rows = items.filter(w => w.type !== 'objective').map(w => {
@@ -114,7 +115,7 @@ async function refresh() {
         const txt = p.summary ?? p.reason ?? p.title ?? p.question ?? p.name ?? '';
         return `<div class="ev"><span class="t">${t}</span><span class="type">${e.event_type}</span>${String(txt).slice(0,120)}</div>`;
       }).join('');
-      const CEO_EVENTS = ['milestone.update', 'directive.received', 'clarification.requested'];
+      const CEO_EVENTS = ['milestone.update', 'status.update', 'directive.received', 'clarification.requested'];
       const ceoFeed = events.filter(e => CEO_EVENTS.includes(e.event_type)).map(e => {
         const t = new Date(e.created_at).toLocaleTimeString();
         const p = e.payload ?? {};
@@ -139,6 +140,10 @@ async function refresh() {
               <button type="submit">Send directive</button>
             </form>
             <h2>CEO updates</h2><div class="feed">${ceoFeed || '<div class="muted">no updates yet</div>'}</div>
+            <h2>Workspace (demos)</h2><div class="feed">${
+              (Array.isArray(files) ? files : []).filter(f => !f.dir).map(f =>
+                `<div class="ev"><a href="/companies/${c.slug}/files/${encodeURIComponent(f.name)}" target="_blank">${f.name}</a></div>`).join('')
+              || '<div class="muted">no files yet</div>'}</div>
             <h2>Event feed</h2><div class="feed">${feed}</div>
           </div>
         </div></div>`;
