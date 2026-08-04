@@ -122,12 +122,12 @@ function drawLabel(x, y, text, color) {
 }
 
 // ---------------------------------------------------------------- actors
-function inConf(x) { return x > 18*T; }
+function inConf(x, y) { return x > 18*T && y < 8*T; }
 
 function route(a, target) {
-  const [dx,dy] = center(DOOR);
-  const path = inConf(a.x) !== inConf(target[0]) ? [[dx,dy],target] : [target];
-  a.path = path;
+  const W = [17*T+8, 4*T+8], D = [19*T+8, 4*T+8];   // west of door / inside doorway
+  const from = inConf(a.x, a.y), to = inConf(target[0], target[1]);
+  a.path = from === to ? [target] : from ? [D, W, target] : [W, D, target];
 }
 
 function targetFor(a, i) {
@@ -143,7 +143,7 @@ function step(a) {
   if (Math.abs(tx-a.x) > SPD) { a.dir = tx>a.x?3:2; a.x += tx>a.x?SPD:-SPD; }
   else if (Math.abs(ty-a.y) > SPD) { a.x=tx; a.dir = ty>a.y?0:1; a.y += ty>a.y?SPD:-SPD; }
   else { a.x=tx; a.y=ty; a.path.shift();
-         if (!a.path.length) { a.moving=false; a.dir = a.status==='working'?1:0; } }
+         if (!a.path.length) { a.moving=false; a.dir = 0; } }
 }
 
 async function poll() {
@@ -166,7 +166,6 @@ async function poll() {
                              hair:HAIR[hash(e.name)%HAIR.length], name:e.name, i }; }
       a.task = working[e.name];
       if (e.status !== a.status) { a.status = e.status; route(a, targetFor(a, i)); }
-      a.anim = !a.moving && a.status==='working' ? 'type' : a.status;
     });
     const ev = events[0];
     if (ev) document.getElementById('ticker').textContent =
@@ -181,7 +180,8 @@ function draw() {
   const list = Object.values(actors).sort((a,b)=>a.y-b.y);   // painter's order
   for (const a of list) {
     step(a);
-    if (!a.moving && a.anim==='type') {                       // lit monitor while typing
+    a.anim = !a.moving && a.status==='working' ? 'type' : '';
+    if (a.anim==='type') {                                    // lit monitor while typing
       const [c,r] = DESKS[a.i%DESKS.length];
       px(c*T+4, r*T, 8, 5, (tick>>4)%2 ? '#9fd0ff' : '#7db8ec');
     }
