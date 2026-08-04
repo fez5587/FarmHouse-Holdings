@@ -69,7 +69,18 @@ const px = (x,y,w,h,c) => { ctx.fillStyle=c; ctx.fillRect(x|0,y|0,w,h); };
 const hash = s => [...s].reduce((a,ch)=>(a*31+ch.charCodeAt(0))>>>0, 7);
 const center = ([tx,ty]) => [tx*T+T/2, ty*T+T/2];
 
-let tick = 0, actors = {}, companyName = '…';
+let tick = 0, actors = {}, companyName = '…', companySlug = null;
+
+// click a working employee to open their live worker log
+document.getElementById('c').addEventListener('click', ev => {
+  const r = ev.target.getBoundingClientRect();
+  const x = (ev.clientX - r.left) * (480 / r.width), y = (ev.clientY - r.top) * (320 / r.height);
+  for (const a of Object.values(actors))
+    if (a.itemId && Math.abs(x - a.x) < 12 && y > a.y - 26 && y < a.y + 6) {
+      window.open(`/companies/${companySlug}/work-items/${a.itemId}/log`, '_blank');
+      return;
+    }
+});
 
 // ---------------------------------------------------------------- tiles
 function drawMap() {
@@ -178,7 +189,7 @@ async function poll() {
     const want = new URLSearchParams(location.search).get('company');
     const co = companies.find(c=>c.slug===want) ?? companies[0];
     if (!co) return;
-    companyName = co.name;
+    companyName = co.name; companySlug = co.slug;
     document.getElementById('tabs').innerHTML = companies.length > 1
       ? companies.map(c => `<a href="?company=${c.slug}" style="margin:0 .4rem; ${c.slug===co.slug?'font-weight:bold;':''}">${c.name}</a>`).join('')
       : '';
@@ -195,6 +206,7 @@ async function poll() {
                              hair:HAIR[hash(e.name)%HAIR.length], name:e.name, i }; }
       const w = working[e.name];
       a.task = w?.title;
+      a.itemId = w?.id;
       const taskType = w?.type;
       if (e.status !== a.status || taskType !== a.taskType) {
         a.status = e.status; a.taskType = taskType; route(a, targetFor(a, i));

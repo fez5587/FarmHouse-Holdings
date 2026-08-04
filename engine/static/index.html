@@ -105,7 +105,9 @@ async function refresh() {
       const rows = items.filter(w => w.type !== 'objective').map(w => {
         const answer = w.status === 'blocked'
           ? ` <button onclick="answerItem('${c.slug}','${w.id}')">answer</button>` : '';
-        return `<tr><td>${w.title}</td><td class="muted">${w.owner_name ?? ''}</td><td>${pill(w.status)}${answer}</td></tr>`;
+        const log = w.hermes_task_id
+          ? ` <a href="/companies/${c.slug}/work-items/${w.id}/log" target="_blank" class="muted">log</a>` : '';
+        return `<tr><td>${w.title}${log}</td><td class="muted">${w.owner_name ?? ''}</td><td>${pill(w.status)}${answer}</td></tr>`;
       }).join('');
       const objs = items.filter(w => w.type === 'objective').map(w =>
         `<tr><td>${w.title}</td><td>${pill(w.status)}</td></tr>`).join('');

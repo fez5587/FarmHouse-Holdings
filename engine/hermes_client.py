@@ -121,6 +121,10 @@ class HermesClient:
         """Returns {name, path, size, mime_type, data_url} (base64 data URL)."""
         return await self._json("GET", "/api/files/read", params={"path": path})
 
+    async def task_log(self, task_id: str) -> str:
+        data = await self._json("GET", f"/api/plugins/kanban/tasks/{task_id}/log")
+        return data.get("content") or ""
+
     # ------------------------------------------------------------ kanban (= work dispatch)
 
     async def create_task(self, title: str, *, body: str, assignee: str, tenant: str,

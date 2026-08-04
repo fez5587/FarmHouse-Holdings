@@ -422,6 +422,25 @@ async def _set_company_state(slug: str, expect: str, new: str, event: str) -> di
     return {"slug": slug, "lifecycle_state": new}
 
 
+@app.get("/companies/{slug}/work-items/{item_id}/log")
+async def work_item_log(slug: str, item_id: UUID, tail: int = 6000) -> Response:
+    """Live worker log (incl. reasoning) for a dispatched work item."""
+    item = await db.fetch_one(
+        "SELECT wi.* FROM work_item wi JOIN company c ON c.id = wi.company_id "
+        "WHERE wi.id = %s AND c.slug = %s", item_id, slug)
+    if not item:
+        raise HTTPException(404, "no such work item")
+    if not item["hermes_task_id"]:
+        return Response("(not dispatched yet — no log)", media_type="text/plain")
+    try:
+        content = await hermes.task_log(item["hermes_task_id"])
+    except HermesError as e:
+        raise HTTPException(502, f"log fetch failed: {e}")
+    header = f"work item: {item['title']}\nstatus: {item['status']}\n{'='*60}\n"
+    return Response(header + content[-max(tail, 500):],
+                    media_type="text/plain; charset=utf-8")
+
+
 # ---------------------------------------------------------------- workspace files (demos)
 
 
