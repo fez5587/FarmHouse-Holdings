@@ -136,12 +136,38 @@ class Dispatcher:
         for item in ready:
             await self._dispatch_one(item)
 
+    async def _sibling_context(self, item: dict) -> str:
+        """Completed-sibling reports appended to the task body: kanban runs are
+        isolated, so without this each task is blind to its siblings' output."""
+        if not item.get("parent_id"):
+            return ""
+        rows = await db.fetch_all(
+            """
+            SELECT e.payload FROM event e
+            JOIN work_item w ON w.id = e.work_item_id
+            WHERE w.parent_id = %s AND w.id <> %s AND w.status = 'done'
+              AND e.event_type = 'task.completed'
+            ORDER BY e.created_at
+            """, item["parent_id"], item["id"])
+        lines = []
+        for r in rows:
+            p = r["payload"] or {}
+            s = p.get("summary") or p.get("detail")
+            if s:
+                lines.append(f"- {str(s)[:400]}")
+        if not lines:
+            return ""
+        return ("\n\n## What teammates already completed on this objective\n"
+                + "\n".join(lines)
+                + "\nDo not assume their intermediate files exist; only the "
+                "shared workspace directory persists between runs.")
+
     async def _dispatch_one(self, item: dict) -> None:
         budget = item["budget"]
         try:
             task = await self.hermes.create_task(
                 item["title"],
-                body=_task_body(item),
+                body=_task_body(item) + await self._sibling_context(item),
                 assignee=item["hermes_profile"],
                 tenant=item["company_slug"],
                 idempotency_key=str(item["id"]),
